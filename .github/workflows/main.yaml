@@ -4,7 +4,7 @@ on: workflow_dispatch
 
 jobs:
   buildWithLinux:
-    name: Build for ${{ matrix.targetPlatform }}
+    name: Build for Android
     runs-on: ubuntu-latest
     needs: tests
     strategy:
@@ -12,9 +12,6 @@ jobs:
       matrix:
         targetPlatform:
           - Android
-          - iOS
-          - StandaloneLinux64
-          - WebGL
     outputs:
       buildVersion: ${{ steps.buildStep.outputs.buildVersion }}
     steps:
