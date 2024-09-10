@@ -1,0 +1,65 @@
+name: Build project
+
+on: workflow_dispatch
+
+jobs:
+  buildWithLinux:
+    name: Build for ${{ matrix.targetPlatform }}
+    runs-on: ubuntu-latest
+    needs: tests
+    strategy:
+      fail-fast: false
+      matrix:
+        targetPlatform:
+          - Android
+          - iOS
+          - StandaloneLinux64
+          - WebGL
+    outputs:
+      buildVersion: ${{ steps.buildStep.outputs.buildVersion }}
+    steps:
+      - name: Free Disk Space for Android
+        if: matrix.targetPlatform == 'Android'
+        run: |
+          df -h
+          sudo swapoff -a
+          sudo rm -f /swapfile
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Create LFS file list
+        run: git lfs ls-files -l | cut -d' ' -f1 | sort > .lfs-assets-id
+      - name: Restore LFS cache
+        uses: actions/cache@v3
+        id: lfs-cache
+        with:
+          path: .git/lfs
+          key: ${{ runner.os }}-lfs-${{ hashFiles('.lfs-assets-id') }}
+      - name: Git LFS Pull
+        run: |
+          git lfs pull
+          git add .
+          git reset --hard
+      - uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-build-${{ matrix.targetPlatform }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-build-${{ matrix.targetPlatform }}-
+            Library-build-
+      - name: Build Unity Project
+        id: buildStep
+        uses: game-ci/unity-builder@v2
+        with:
+          targetPlatform: Android
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-Android
+          path: build/Android
